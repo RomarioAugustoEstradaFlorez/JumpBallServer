@@ -11,7 +11,13 @@ export class ScoreController {
   ) {}
 
   @post('/scores')
-  async create(@requestBody() score: Score): Promise<Score> {
+  async create(@requestBody() score: Score): Promise<Score | void | boolean> {
+    const nameExists = await this.scoreNameAlreadyExists(score.name);
+    if (nameExists) {
+      const scoreEx = await this.scoreRepository.findOne({ where: { name: score.name } });
+      if(scoreEx) return this.scoreRepository.updateById(scoreEx.id, score);
+      else return false;
+    }
     // Generate an ID
     score.id = uuidv4();
 
@@ -19,8 +25,13 @@ export class ScoreController {
   }
 
   @get('/scores/{id}')
-  async findById(@param.path.number('id') id: string): Promise<Score> {
+  async findById(@param.path.string('id') id: string): Promise<Score> {
     return this.scoreRepository.findById(id);
+  }
+
+  @get('/scoresByName/{name}')
+  async findByName(@param.path.string('name') name: string): Promise<Score | null> {
+    return this.scoreRepository.findOne({ where: { name } });
   }
 
   @get('/scores')
@@ -30,7 +41,7 @@ export class ScoreController {
 
   @put('/scores/{id}')
   async updateById(
-    @param.path.number('id') id: string,
+    @param.path.string('id') id: string,
     @requestBody() score: Score,
   ): Promise<void> {
     if (!score.id) {
@@ -41,7 +52,14 @@ export class ScoreController {
   }
 
   @del('/scores/{id}')
-  async deleteById(@param.path.number('id') id: string): Promise<void> {
+  async deleteById(@param.path.string('id') id: string): Promise<void> {
     await this.scoreRepository.deleteById(id);
+  }
+
+
+  // helpers
+  async scoreNameAlreadyExists(name: string): Promise<boolean> {
+    const existingScore = await this.scoreRepository.findOne({ where: { name } });
+    return !!existingScore;
   }
 }
